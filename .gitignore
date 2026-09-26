@@ -1,41 +1,106 @@
-# Compiled Lua sources
-luac.out
+--[[
+    Blox Fruits System / Misc Settings Module
+    UI Library: Orion Library
+    Developer: Rito
+--]]
 
-# luarocks build files
-*.src.rock
-*.zip
-*.tar.gz
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
-# Object files
-*.o
-*.os
-*.ko
-*.obj
-*.elf
+local LocalPlayer = Players.LocalPlayer
 
-# Precompiled Headers
-*.gch
-*.pch
+-- System / Misc Tab Initialization
+local SettingsTab = Window:MakeTab({Name = "Hệ Thống / Misc", Icon = "rbxassetid://4483345998", PremiumOnly = false})
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-*.def
-*.exp
+-- 1. DỊCH CHUYỂN NHANH (FAST TELEPORT)
+SettingsTab:AddSection({Name = "Dịch Chuyển Nhanh (Teleport)"})
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+local IslandLocations = {
+    ["Sea 1 - Starter Island"] = CFrame.new(1059.37, 16.51, 1549.25),
+    ["Sea 1 - Jungle"] = CFrame.new(-1598.66, 36.85, 153.38),
+    ["Sea 1 - Marine Ford"] = CFrame.new(-4803.95, 21.08, 4358.54),
+    ["Sea 2 - Cafe"] = CFrame.new(-382.23, 73.04, 299.93),
+    ["Sea 2 - Green Zone"] = CFrame.new(-2421.36, 73.02, -3203.26),
+    ["Sea 3 - Mansion"] = CFrame.new(-12471.17, 374.94, -7551.48),
+    ["Sea 3 - Castle on the Sea"] = CFrame.new(-5085.24, 316.51, -8986.32)
+}
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+local IslandNames = {}
+for name, _ in pairs(IslandLocations) do
+    table.insert(IslandNames, name)
+end
 
+local SelectedIsland = IslandNames[1]
+
+SettingsTab:AddDropdown({
+    Name = "Chọn Đảo Cần Đến",
+    Default = SelectedIsland,
+    Options = IslandNames,
+    Callback = function(Value)
+        SelectedIsland = Value
+    end
+})
+
+SettingsTab:AddButton({
+    Name = "Dịch Chuyển Ngay",
+    Callback = function()
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and IslandLocations[SelectedIsland] then
+            hrp.CFrame = IslandLocations[SelectedIsland]
+        end
+    end
+})
+
+-- 2. QUẢN LÝ SERVER (SERVER HOP & REJOIN)
+SettingsTab:AddSection({Name = "Quản Lý Server"})
+
+SettingsTab:AddButton({
+    Name = "Kết Nối Lại Server (Rejoin)",
+    Callback = function()
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end
+})
+
+SettingsTab:AddButton({
+    Name = "Đổi Server Ngẫu Nhiên (Server Hop)",
+    Callback = function()
+        pcall(function()
+            local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+            for _, server in pairs(servers.data) do
+                if server.id ~= game.JobId and server.playing < server.maxPlayers then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+                    break
+                end
+            end
+        end)
+    end
+})
+
+-- 3. TỐI ƯU HÓA & GIẢM LAG (FPS BOOSTER)
+SettingsTab:AddSection({Name = "Tối Ưu Hóa Game (Anti-Lag)"})
+
+SettingsTab:AddButton({
+    Name = "Bật Chế Độ Giảm Lag (FPS Boost)",
+    Callback = function()
+        pcall(function()
+            -- Tắt hiệu ứng ánh sáng
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            
+            -- Tắt hiệu ứng các vật thể trong Workspace
+            for _, v in pairs(Workspace:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.Material = Enum.Material.SmoothPlastic
+                    v.Reflectance = 0
+                elseif v:IsA("Decal") or v:IsA("Texture") then
+                    v:Destroy()
+                elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                    v.Enabled = false
+                end
+            end
+        end)
+    end
+})
